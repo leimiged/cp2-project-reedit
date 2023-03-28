@@ -30,6 +30,14 @@ resource "azurerm_subnet" "sub-cp2" {
   address_prefixes     = ["10.0.2.0/24"]
 }
 
+resource "azurerm_public_ip" "cp2" {
+  for_each            = toset(var.names)
+  name                = "${each.key}pu-ip"
+  location            = azurerm_resource_group.cp2.location
+  resource_group_name = azurerm_resource_group.cp2.name
+  allocation_method   = "Dynamic"
+}
+
 resource "azurerm_network_interface" "nic-cp2" {
   for_each            = toset(var.names)
   name                = "${each.key}-nic"
@@ -40,6 +48,7 @@ resource "azurerm_network_interface" "nic-cp2" {
     name                          = "pipcp2"
     subnet_id                     = azurerm_subnet.sub-cp2.id
     private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = "${azurerm_public_ip.cp2[each.value].id}"
   }
 }
 
@@ -81,6 +90,10 @@ resource "azurerm_linux_virtual_machine" "cp2" {
   size                  = "Standard_B2s"
   admin_username        = "ansible"
   network_interface_ids = [azurerm_network_interface.nic-cp2[each.key].id]
+
+  tags = {
+    environment = "${each.key}"
+  }
 
   admin_ssh_key {
     username   = "ansible"
